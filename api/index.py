@@ -107,9 +107,10 @@ async def generate_tts(request: TTSRequest):
     if request.emotion not in EMOTIONS:
         raise HTTPException(status_code=400, detail=f"Неизвестная эмоция: {request.emotion}")
     
-    generation_id = str(uuid.uuid4())[:8]
-    output_filename = f"tts_{generation_id}.mp3"
-    output_path = OUTPUT_DIR / output_filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        voice_name = voice_config["name"].replace(" ", "_").replace("Pro", "Pro")
+        output_filename = f"{voice_name}_{timestamp}.mp3"
+        output_path = OUTPUT_DIR / output_filename
     
     voice_config = VOICES[request.voice]
     azure_voice = voice_config["azure_id"]

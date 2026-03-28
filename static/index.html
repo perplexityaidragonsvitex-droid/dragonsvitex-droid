@@ -88,14 +88,31 @@
         .metro-logo {
             width: 80px;
             height: 80px;
-            background: linear-gradient(135deg, #0055A4, #4DA6FF);
+            background: #0055A4;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 40px;
             margin: 0 auto 20px;
             box-shadow: 0 0 40px rgba(0,85,164,0.4);
+        }
+        .metro-logo svg {
+            width: 50px;
+            height: 50px;
+        }
+        .metro-logo-small {
+            width: 48px;
+            height: 48px;
+            background: #0055A4;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,85,164,0.3);
+        }
+        .metro-logo-small svg {
+            width: 30px;
+            height: 30px;
         }
     </style>
 </head>
@@ -208,7 +225,6 @@
 
             const result = await response.json();
             state.history.unshift(result);
-            state.text = '';
             render();
         } catch (error) {
             alert('Ошибка: ' + error.message);
@@ -314,7 +330,10 @@
     function downloadAudio(item) {
         const link = document.createElement('a');
         link.href = `${API_URL}${item.audio_url}`;
-        link.download = `metro_tts_${item.id}.mp3`;
+        const voiceName = item.voice.replace(/ /g, '_');
+        const date = new Date();
+        const timestamp = `${date.getFullYear()}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}_${String(date.getHours()).padStart(2,'0')}${String(date.getMinutes()).padStart(2,'0')}`;
+        link.download = `${voiceName}_${timestamp}.mp3`;
         link.click();
     }
 
@@ -335,7 +354,9 @@
             <div class="login-container rounded-2xl p-8 w-full max-w-md">
                 <!-- Metro Logo -->
                 <div class="metro-logo">
-                    🚇
+                    <svg viewBox="0 0 100 100" fill="white">
+                        <path d="M15 85 L15 25 C15 20 20 15 25 15 L75 15 C80 15 85 20 85 25 L85 85 L70 85 L70 45 L55 70 L45 70 L30 45 L30 85 Z"/>
+                    </svg>
                 </div>
                 
                 <!-- Title -->
@@ -386,8 +407,10 @@
             <!-- Header -->
             <header class="text-center mb-8">
                 <div class="flex items-center justify-center gap-4 mb-4">
-                    <div class="w-12 h-12 rounded-full metro-gradient flex items-center justify-center text-2xl shadow-lg">
-                        🚇
+                    <div class="metro-logo-small">
+                        <svg viewBox="0 0 100 100" fill="white">
+                            <path d="M15 85 L15 25 C15 20 20 15 25 15 L75 15 C80 15 85 20 85 25 L85 85 L70 85 L70 45 L55 70 L45 70 L30 45 L30 85 Z"/>
+                        </svg>
                     </div>
                     <div>
                         <h1 class="text-2xl font-bold text-[#4DA6FF]">
