@@ -11,7 +11,7 @@ from typing import Optional
 import edge_tts
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -71,7 +71,14 @@ class TTSResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"message": "Dragonsvitex TTS Studio API", "docs": "/docs"}
+    return {"message": "Dragonsvitex TTS Studio API", "docs": "/docs", "frontend": "/app"}
+
+@app.get("/app", response_class=HTMLResponse)
+async def frontend():
+    html_path = Path("static/index.html")
+    if html_path.exists():
+        return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
+    return HTMLResponse(content="<h1>Frontend not found</h1><p>Visit <a href='/docs'>/docs</a> for API</p>")
 
 @app.get("/health")
 async def health_check():
