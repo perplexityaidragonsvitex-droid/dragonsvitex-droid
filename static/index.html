@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dragonsvitex TTS Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); }
+        .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="min-h-screen text-white p-4 md:p-8">
+    <div id="app"></div>
+    
+    <script>
+        const API_URL = window.location.origin;
+        
+        const voices = [
+            { id: 'dmitry', name: 'Дмитрий', description: 'Профессиональный мужской голос', gender: 'male' },
+            { id: 'dmitry_advanced', name: 'Дмитрий Pro', description: 'Продвинутый мужской с эмоциями', gender: 'male' },
+            { id: 'oleg', name: 'Олег', description: 'Мужской голос с характером', gender: 'male' },
+            { id: 'filipp', name: 'Филипп', description: 'Мужской голос', gender: 'male' },
+            { id: 'svetlana', name: 'Светлана', description: 'Профессиональный женский голос', gender: 'female' },
+            { id: 'svetlana_advanced', name: 'Светлана Pro', description: 'Продвинутый женский с эмоциями', gender: 'female' },
+            { id: 'alena', name: 'Алёна', description: 'Женский голос, мягкий', gender: 'female' },
+        ];
+        
+        const emotions = [
+            { id: 'neutral', emoji: '😐', name: 'Нейтральный' },
+            { id: 'cheerful', emoji: '😊', name: 'Весёлый' },
+            { id: 'sad', emoji: '😢', name: 'Грустный' },
+            { id: 'angry', emoji: '😠', name: 'Злой' },
+            { id: 'scared', emoji: '😨', name: 'Испуганный' },
+            { id: 'serious', emoji: '🧐', name: 'Серьёзный' },
+            { id: 'gentle', emoji: '🥰', name: 'Нежный' },
+            { id: 'calm', emoji: '😌', name: 'Спокойный' },
+            { id: 'professional', emoji: '💼', name: 'Профессиональный' },
+        ];
+        
+        let state = {
+            selectedVoice: 'dmitry_advanced',
+            selectedEmotion: 'neutral',
+            text: '',
+            speed: 0,
+            isGenerating: false,
+            history: [],
+            currentAudio: null,
+            isPlaying: false,
+            playingId: null,
+            genderFilter: 'all'
+        };
+        
+        async function generateTTS() {
+            if (!state.text.trim()) {
+                alert('Введите текст для генерации');
+                return;
+            }
+            
+            state.isGenerating = true;
+            render();
+            
+            try {
+                const response = await fetch(`${API_URL}/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: state.text,
+                        voice: state.selectedVoice,
+                        emotion: state.selectedEmotion,
+                        speed: state.speed
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Ошибка генерации');
+                
+                const result = await response.json();
+                state.history.unshift(result);
+                state.text = '';
+                render();
+            } catch (error) {
+                alert(error.message);
+            } finally {
+                state.isGenerating = false;
+                render();
+            }
+        }
+        
+        function playAudio(item) {
+            if (state.currentAudio) {
+                state.currentAudio.pause();
+            }
+            
+            const audio = new Audio(`${API_URL}${item.audio_url}`);
+            audio.onended = () => {
+                state.isPlaying = false;
+                state.playingId = null;
+                render();
+            };
+            
+            state.currentAudio = audio;
+            state.isPlaying = true;
+            state.playingId = item.id;
+            render();
+            audio.play();
+        }
+        
+        function stopAudio() {
+            if (state.currentAudio) {
+                state.currentAudio.pause();
+                state.isPlaying = false;
+                state.playingId = null;
+                render();
+            }
+        }
+        
+        function downloadAudio(item) {
+            const link = document.createElement('a');
+            link.href = `${API_URL}${item.audio_url}`;
+            link.download = `tts_${item.id}.mp3`;
+            link.click();
+        }
+        
+        function formatDuration(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function render() {
+            const filteredVoices = voices.filter(v => 
+                state.genderFilter === 'all' || v.gender === state.genderFilter
+            );
+            
+            const app = document.getElementById('app');
+            app.innerHTML = `
+                <div class="max-w-7xl mx-auto">
+                    <header class="text-center mb-8">
+                        <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+                            Dragonsvitex TTS Studio
+                        </h1>
+                        <p class="text-gray-400">Профессиональная студия синтеза русской речи • АИ-22</p>
+                    </header>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="space-y-6">
+                            <div class="glass rounded-xl p-6 border border-white/10">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h2 class="text-xl font-semibold">Выбор голоса</h2>
+                                    <div class="flex gap-2">
+                                        <button onclick="state.genderFilter='all';render()" 
+                                            class="px-3 py-1 rounded-lg text-sm ${state.genderFilter === 'all' ? 'bg-blue-500' : 'bg-white/10 hover:bg-white/20'}">
+                                            Все
+                                        </button>
+                                        <button onclick="state.genderFilter='male';render()" 
+                                            class="px-3 py-1 rounded-lg text-sm ${state.genderFilter === 'male' ? 'bg-blue-500' : 'bg-white/10 hover:bg-white/20'}">
+                                            👨 Мужские
+                                        </button>
+                                        <button onclick="state.genderFilter='female';render()" 
+                                            class="px-3 py-1 rounded-lg text-sm ${state.genderFilter === 'female' ? 'bg-pink-500' : 'bg-white/10 hover:bg-white/20'}">
+                                            👩 Женские
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    ${filteredVoices.map(v => `
+                                        <div onclick="state.selectedVoice='${v.id}';render()" 
+                                            class="p-4 rounded-xl cursor-pointer transition-all ${state.selectedVoice === v.id ? 'bg-blue-500/20 border-2 border-blue-500' : 'bg-white/5 border border-white/10 hover:border-blue-400/50'}">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-full ${v.gender === 'male' ? 'bg-gradient-to-br from-blue-500 to-purple-600' : 'bg-gradient-to-br from-pink-500 to-rose-600'} flex items-center justify-center">
+                                                    🎤
+                                                </div>
+                                                <div>
+                                                    <p class="font-medium">${v.name}</p>
+                                                    <p class="text-xs text-gray-400">${v.description}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            
+                            <div class="glass rounded-xl p-6 border border-white/10">
+                                <h2 class="text-xl font-semibold mb-4">Выбор эмоции</h2>
+                                <div class="grid grid-cols-3 md:grid-cols-9 gap-2">
+                                    ${emotions.map(e => `
+                                        <button onclick="state.selectedEmotion='${e.id}';render()"
+                                            class="p-3 rounded-xl transition-all ${state.selectedEmotion === e.id ? 'bg-purple-500/30 border-2 border-purple-400' : 'bg-white/5 border border-white/10 hover:border-purple-400/50'}">
+                                            <span class="text-2xl block">${e.emoji}</span>
+                                            <span class="text-xs">${e.name}</span>
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            
+                            <div class="glass rounded-xl p-6 border border-white/10">
+                                <h2 class="text-xl font-semibold mb-4">Текст для озвучки</h2>
+                                <textarea 
+                                    id="textInput"
+                                    class="w-full h-32 bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder-gray-500 resize-none focus:border-blue-400 focus:outline-none"
+                                    placeholder="Введите текст для озвучивания..."
+                                >${state.text}</textarea>
+                                
+                                <div class="mt-4">
+                                    <label class="text-sm text-gray-400">Скорость речи: ${state.speed > 0 ? '+' : ''}${state.speed}%</label>
+                                    <input type="range" min="-50" max="50" step="10" value="${state.speed}" 
+                                        class="w-full mt-2 accent-blue-500"
+                                        onchange="state.speed=parseInt(this.value);render()">
+                                </div>
+                                
+                                <button onclick="generateTTS()" 
+                                    disabled="${state.isGenerating || !state.text.trim()}"
+                                    class="w-full mt-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all">
+                                    ${state.isGenerating ? '⏳ Генерация...' : '✨ Сгенерировать MP3'}
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6 border border-white/10">
+                            <h2 class="text-xl font-semibold mb-4">История (${state.history.length})</h2>
+                            <div class="space-y-3 max-h-[600px] overflow-y-auto">
+                                ${state.history.length === 0 ? `
+                                    <div class="text-center py-12 text-gray-500">
+                                        <p class="text-4xl mb-3">📜</p>
+                                        <p>История пуста</p>
+                                    </div>
+                                ` : state.history.map(item => `
+                                    <div class="p-4 bg-white/5 rounded-xl border border-white/10">
+                                        <p class="text-sm mb-2 truncate">${item.text}</p>
+                                        <div class="flex items-center gap-3 text-xs text-gray-400 mb-3">
+                                            <span>🎤 ${item.voice}</span>
+                                            <span>🎭 ${item.emotion}</span>
+                                            <span>⏱ ${formatDuration(item.duration)}</span>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button onclick="playAudio(${JSON.stringify(item).replace(/"/g, '&quot;')})"
+                                                class="flex-1 py-2 rounded-lg ${state.playingId === item.id ? 'bg-pink-500/20 text-pink-400' : 'bg-white/10 hover:bg-white/20'}">
+                                                ${state.playingId === item.id ? '⏸ Стоп' : '▶️ Играть'}
+                                            </button>
+                                            <button onclick="downloadAudio(${JSON.stringify(item).replace(/"/g, '&quot;')})"
+                                                class="px-4 py-2 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30">
+                                                ⬇️
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <footer class="text-center mt-8 text-gray-500 text-sm">
+                        <p>Создано с ❤️ • Edge TTS • Стандарт АИ-22</p>
+                    </footer>
+                </div>
+            `;
+            
+            document.getElementById('textInput')?.addEventListener('input', (e) => {
+                state.text = e.target.value;
+            });
+        }
+        
+        render();
+    </script>
+</body>
+</html>
