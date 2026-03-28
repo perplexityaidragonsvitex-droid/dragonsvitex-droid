@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0055A4">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="СПС TTS">
     <title>СПС Голосовая Студия • Петербургский метрополитен</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <link rel="apple-touch-icon" href="/static/logo.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Metro colors */
@@ -95,10 +102,11 @@
             justify-content: center;
             margin: 0 auto 20px;
             box-shadow: 0 0 40px rgba(0,85,164,0.4);
+            overflow: hidden;
         }
-        .metro-logo svg {
-            width: 50px;
-            height: 50px;
+        .metro-logo img, .metro-logo svg {
+            width: 60px;
+            height: 60px;
         }
         .metro-logo-small {
             width: 48px;
@@ -109,10 +117,20 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 4px 15px rgba(0,85,164,0.3);
+            overflow: hidden;
         }
-        .metro-logo-small svg {
-            width: 30px;
-            height: 30px;
+        .metro-logo-small img, .metro-logo-small svg {
+            width: 36px;
+            height: 36px;
+        }
+        
+        /* Install banner */
+        .install-banner {
+            background: linear-gradient(135deg, rgba(0,85,164,0.95), rgba(0,102,204,0.95));
+            backdrop-filter: blur(10px);
+        }
+        .install-banner.hidden {
+            display: none;
         }
     </style>
 </head>
@@ -123,6 +141,43 @@
     const API_URL = window.location.origin;
     const APP_PASSWORD = 'dragonsvitex2026';
     const SESSION_KEY = 'metro_tts_session';
+    
+    // PWA Install
+    let deferredPrompt = null;
+    let installBannerDismissed = sessionStorage.getItem('install_banner_dismissed');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        if (!installBannerDismissed && state.isAuthenticated) {
+            showInstallBanner();
+        }
+    });
+
+    function showInstallBanner() {
+        const banner = document.getElementById('installBanner');
+        if (banner && deferredPrompt) {
+            banner.classList.remove('hidden');
+        }
+    }
+
+    function hideInstallBanner() {
+        const banner = document.getElementById('installBanner');
+        if (banner) {
+            banner.classList.add('hidden');
+        }
+        sessionStorage.setItem('install_banner_dismissed', 'true');
+    }
+
+    async function installApp() {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            hideInstallBanner();
+        }
+        deferredPrompt = null;
+    }
 
     const voices = [
         { id: 'dmitry', name: 'Дмитрий', description: 'Информационный', gender: 'male' },
@@ -354,8 +409,9 @@
             <div class="login-container rounded-2xl p-8 w-full max-w-md">
                 <!-- Metro Logo -->
                 <div class="metro-logo">
-                    <svg viewBox="0 0 100 100" fill="white">
-                        <path d="M15 85 L15 25 C15 20 20 15 25 15 L75 15 C80 15 85 20 85 25 L85 85 L70 85 L70 45 L55 70 L45 70 L30 45 L30 85 Z"/>
+                    <svg viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="48" fill="#0055A4"/>
+                        <path d="M25 75 L25 35 C25 28 32 22 40 22 L60 22 C68 22 75 28 75 35 L75 75 L62 75 L62 42 L55 60 L45 60 L38 42 L38 75 Z" fill="white"/>
                     </svg>
                 </div>
                 
@@ -403,13 +459,38 @@
         );
 
         return `
+        <!-- Install Banner -->
+        <div id="installBanner" class="install-banner hidden fixed top-0 left-0 right-0 z-50 p-4 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="metro-logo-small" style="width:40px;height:40px;min-width:40px;">
+                    <svg viewBox="0 0 100 100" style="width:30px;height:30px;">
+                        <circle cx="50" cy="50" r="48" fill="#0055A4"/>
+                        <path d="M25 75 L25 35 C25 28 32 22 40 22 L60 22 C68 22 75 28 75 35 L75 75 L62 75 L62 42 L55 60 L45 60 L38 42 L38 75 Z" fill="white"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-semibold text-sm">Установить приложение</p>
+                    <p class="text-xs text-white/70">Добавьте СПС TTS на главный экран для быстрого доступа</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="installApp()" class="px-4 py-2 bg-white text-[#0055A4] rounded-lg font-semibold text-sm hover:bg-gray-100 transition-colors">
+                    Установить
+                </button>
+                <button onclick="hideInstallBanner()" class="px-3 py-2 text-white/70 hover:text-white transition-colors">
+                    ✕
+                </button>
+            </div>
+        </div>
+
         <div class="max-w-7xl mx-auto">
             <!-- Header -->
             <header class="text-center mb-8">
                 <div class="flex items-center justify-center gap-4 mb-4">
                     <div class="metro-logo-small">
-                        <svg viewBox="0 0 100 100" fill="white">
-                            <path d="M15 85 L15 25 C15 20 20 15 25 15 L75 15 C80 15 85 20 85 25 L85 85 L70 85 L70 45 L55 70 L45 70 L30 45 L30 85 Z"/>
+                        <svg viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="48" fill="#0055A4"/>
+                            <path d="M25 75 L25 35 C25 28 32 22 40 22 L60 22 C68 22 75 28 75 35 L75 75 L62 75 L62 42 L55 60 L45 60 L38 42 L38 75 Z" fill="white"/>
                         </svg>
                     </div>
                     <div>
