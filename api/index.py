@@ -83,3 +83,85 @@ async def frontend():
     return HTMLResponse(content="<h1>Frontend not found</h1><p>Visit <a href='/docs'>/docs</a> for API</p>")
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
+@app.get("/voices")
+async def list_voices():
+    return {
+        "voices": [
+            {"id": k, **v} for k, v in VOICES.items()
+        ]
+    }
+
+@app.post("/generate", response_model=TTSResponse)
+async def generate_tts(request: TTSRequest):
+    if not request.text.strip():
+        raise HTTPException(status_code=400, detail="Текст не может быть пустым")
+    
+    if request.voice not in VOICES:
+        raise HTTPException(status_code=400, detail=f"Неизвестный голос: {request.voice}")
+    
+    if request.emotion not in EMOTIONS:
+        raise HTTPException(status_code=400, detail=f"Неизвестная эмоция: {request.emotion}")
+    
+    generation_id = str(uuid.uuid4())[:8]
+    output_filename = f"tts_{generation_id}.mp3"
+    output_path = OUTPUT_DIR / output_filename
+    
+    voice_config = VOICES[request.voice]
+    azure_voice = voice_config["azure_id"]
+    emotion_style = EMOTIONS.get(request.emotion, "neutral")
+    
+    speed_str = f"+{int(request.speed)}%" if request.speed >= 0 else f"{int(request.speed)}%"
+    
+    try:
+        communicate = edge_tts.Communicate(
+            text=request.text,
+            voice=azure_voice,
+            rate=speed_str
+        )
+        
+        await communicate.save(str(output_path))
+        
+        file_size = output_path.stat().st_size
+        duration = max(1.0, file_size / 24000)
+        
+        result = {
+            "id": generation_id,
+            "audio_url": f"/audio/{output_filename}",
+            "duration": round(duration, 2),
+            "character_count": len(request.text),
+            "created_at": datetime.now().isoformat(),
+            "voice": voice_config["name"],
+            "emotion": request.emotion,
+            "text": request.text[:100] + ("..." if len(request.text) > 100 else "")
+        }
+        
+        GENERATION_HISTORY.insert(0, result)
+        if len(GENERATION_HISTORY) > 50:
+            GENERATION_HISTORY.pop()
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка генерации: {str(e)}")
+
+@app.get("/history")
+async def get_history():
+    return {"history": GENERATION_HISTORY}
+
+@app.get("/audio/{filename}")
+async def get_audio(filename: str):
+    file_path = OUTPUT_DIR / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    
+    return FileResponse(
+        path=file_path,
+        media_type="audio/mpeg",
+        filename=filename
+    )
