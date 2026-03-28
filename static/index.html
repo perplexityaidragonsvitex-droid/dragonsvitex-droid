@@ -9,6 +9,62 @@
         body { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); }
         .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); }
         .emotion-btn { min-width: 80px; }
+        
+        /* Waveform animation */
+        .waveform { display: flex; align-items: center; justify-content: center; gap: 2px; height: 32px; }
+        .waveform span {
+            width: 3px;
+            background: linear-gradient(to top, #3b82f6, #8b5cf6);
+            border-radius: 2px;
+            animation: wave 1s ease-in-out infinite;
+        }
+        .waveform span:nth-child(1) { animation-delay: 0s; }
+        .waveform span:nth-child(2) { animation-delay: 0.1s; }
+        .waveform span:nth-child(3) { animation-delay: 0.2s; }
+        .waveform span:nth-child(4) { animation-delay: 0.3s; }
+        .waveform span:nth-child(5) { animation-delay: 0.4s; }
+        .waveform span:nth-child(6) { animation-delay: 0.5s; }
+        .waveform span:nth-child(7) { animation-delay: 0.6s; }
+        
+        @keyframes wave {
+            0%, 100% { height: 8px; }
+            50% { height: 28px; }
+        }
+        
+        .waveform.paused span {
+            animation: none;
+            height: 12px;
+        }
+        
+        /* Progress bar */
+        .progress-bar {
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            height: 6px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            border-radius: 4px;
+            transition: width 0.1s linear;
+        }
+        
+        /* Player card */
+        .player-card {
+            background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(139,92,246,0.1));
+            border: 1px solid rgba(139,92,246,0.3);
+        }
+        .player-card.playing {
+            border-color: rgba(139,92,246,0.6);
+            box-shadow: 0 0 30px rgba(139,92,246,0.2);
+        }
+        
+        /* Scroll styling */
+        .history-scroll::-webkit-scrollbar { width: 4px; }
+        .history-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 2px; }
+        .history-scroll::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.5); border-radius: 2px; }
     </style>
 </head>
 <body class="min-h-screen text-white p-4 md:p-8">
@@ -49,8 +105,11 @@
         currentAudio: null,
         isPlaying: false,
         playingId: null,
+        progress: 0,
         genderFilter: 'all'
     };
+
+    let progressInterval = null;
 
     async function generateTTS() {
         const text = state.text.trim();
@@ -92,31 +151,96 @@
     }
 
     function playAudio(item) {
+        if (state.currentAudio && state.playingId === item.id) {
+            togglePlayPause();
+            return;
+        }
+
         if (state.currentAudio) {
             state.currentAudio.pause();
+            clearInterval(progressInterval);
         }
 
         const audio = new Audio(`${API_URL}${item.audio_url}`);
+        
+        audio.onloadedmetadata = () => {
+            state.currentAudio = audio;
+            state.isPlaying = true;
+            state.playingId = item.id;
+            state.progress = 0;
+            render();
+            startProgressTracking();
+        };
+
         audio.onended = () => {
             state.isPlaying = false;
             state.playingId = null;
+            state.progress = 0;
+            clearInterval(progressInterval);
             render();
         };
 
+        audio.onerror = () => {
+            alert('Ошибка воспроизведения');
+            state.isPlaying = false;
+            state.playingId = null;
+            clearInterval(progressInterval);
+            render();
+        };
+
+        audio.play();
         state.currentAudio = audio;
         state.isPlaying = true;
         state.playingId = item.id;
         render();
-        audio.play();
     }
 
-    function stopAudio() {
-        if (state.currentAudio) {
+    function startProgressTracking() {
+        clearInterval(progressInterval);
+        progressInterval = setInterval(() => {
+            if (state.currentAudio && state.isPlaying) {
+                const progress = (state.currentAudio.currentTime / state.currentAudio.duration) * 100;
+                state.progress = progress || 0;
+                
+                const progressEl = document.getElementById('progress-fill-' + state.playingId);
+                if (progressEl) {
+                    progressEl.style.width = progress + '%';
+                }
+                
+                const timeEl = document.getElementById('time-' + state.playingId);
+                if (timeEl) {
+                    const current = formatTime(state.currentAudio.currentTime);
+                    const total = formatTime(state.currentAudio.duration);
+                    timeEl.textContent = `${current} / ${total}`;
+                }
+            }
+        }, 100);
+    }
+
+    function togglePlayPause() {
+        if (!state.currentAudio) return;
+
+        if (state.isPlaying) {
             state.currentAudio.pause();
             state.isPlaying = false;
-            state.playingId = null;
-            render();
+            clearInterval(progressInterval);
+        } else {
+            state.currentAudio.play();
+            state.isPlaying = true;
+            startProgressTracking();
         }
+        render();
+    }
+
+    function seekAudio(item, event) {
+        if (!state.currentAudio || state.playingId !== item.id) return;
+        
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const percent = x / rect.width;
+        state.currentAudio.currentTime = percent * state.currentAudio.duration;
+        state.progress = percent * 100;
+        render();
     }
 
     function downloadAudio(item) {
@@ -126,10 +250,15 @@
         link.click();
     }
 
-    function formatDuration(seconds) {
+    function formatTime(seconds) {
+        if (!seconds || isNaN(seconds)) return '0:00';
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function formatDuration(seconds) {
+        return formatTime(seconds);
     }
 
     function render() {
@@ -227,29 +356,60 @@
                 <div class="lg:col-span-1">
                     <div class="glass rounded-xl p-6 border border-white/10 sticky top-4">
                         <h2 class="text-xl font-semibold mb-4">История (${state.history.length})</h2>
-                        <div class="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+                        <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-2 history-scroll">
                             ${state.history.length === 0 ? `
                             <div class="text-center py-12 text-gray-500">
                                 <p class="text-4xl mb-3">📜</p>
                                 <p>История пуста</p>
                             </div>
                             ` : state.history.map(item => `
-                            <div class="p-3 bg-white/5 rounded-xl border border-white/10">
-                                <p class="text-sm mb-2 truncate">${item.text || 'Без названия'}</p>
-                                <div class="flex items-center gap-2 text-xs text-gray-400 mb-2">
-                                    <span>🎤 ${item.voice}</span>
-                                    <span>⏱ ${formatDuration(item.duration)}</span>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button onclick='playAudio(${JSON.stringify(item)})'
-                                        class="flex-1 py-2 rounded-lg text-sm ${state.playingId === item.id ? 'bg-pink-500/20 text-pink-400' : 'bg-white/10 hover:bg-white/20'}">
-                                        ${state.playingId === item.id ? '⏸ Стоп' : '▶ Играть'}
-                                    </button>
-                                    <button onclick='downloadAudio(${JSON.stringify(item)})'
-                                        class="px-4 py-2 rounded-lg text-sm bg-green-500/20 text-green-400 hover:bg-green-500/30">
+                            <div class="player-card rounded-xl p-4 ${state.playingId === item.id && state.isPlaying ? 'playing' : ''}">
+                                <!-- Header -->
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm font-medium text-gray-300">${item.voice}</span>
+                                        <span class="text-xs text-gray-500">•</span>
+                                        <span class="text-xs text-gray-400">${item.emotion}</span>
+                                    </div>
+                                    <button onclick='downloadAudio(${JSON.stringify(item)})' 
+                                        class="text-gray-400 hover:text-green-400 transition-colors" title="Скачать">
                                         ⬇
                                     </button>
                                 </div>
+                                
+                                <!-- Text preview -->
+                                <p class="text-sm text-gray-300 mb-3 line-clamp-2">${item.text || 'Без названия'}</p>
+                                
+                                <!-- Waveform / Play button -->
+                                <div class="flex items-center gap-3">
+                                    <button onclick='playAudio(${JSON.stringify(item)})'
+                                        class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 flex items-center justify-center transition-all shadow-lg hover:shadow-purple-500/25">
+                                        ${state.playingId === item.id && state.isPlaying ? 
+                                            '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>' : 
+                                            '<svg class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'
+                                        }
+                                    </button>
+                                    
+                                    <div class="flex-1">
+                                        <!-- Progress bar -->
+                                        <div class="progress-bar mb-1" onclick='seekAudio(${JSON.stringify(item)}, event)'>
+                                            <div id="progress-fill-${item.id}" class="progress-fill" style="width: ${state.playingId === item.id ? state.progress : 0}%"></div>
+                                        </div>
+                                        <!-- Time -->
+                                        <div class="flex justify-between text-xs text-gray-400">
+                                            <span id="time-${item.id}">${state.playingId === item.id ? formatTime(state.currentAudio?.currentTime || 0) : '0:00'} / ${formatDuration(item.duration)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Animated waveform indicator -->
+                                ${state.playingId === item.id && state.isPlaying ? `
+                                <div class="flex justify-center mt-3">
+                                    <div class="waveform">
+                                        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                                    </div>
+                                </div>
+                                ` : ''}
                             </div>
                             `).join('')}
                         </div>
