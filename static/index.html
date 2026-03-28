@@ -3,18 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dragonsvitex TTS Studio</title>
+    <title>СПС Голосовая Студия • Петербургский метрополитен</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); }
-        .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); }
+        /* Metro colors */
+        :root {
+            --metro-blue: #0055A4;
+            --metro-dark: #001832;
+            --metro-light: #E8F4FF;
+        }
+        body { 
+            background: linear-gradient(135deg, #001832 0%, #002952 50%, #001832 100%); 
+        }
+        .glass { 
+            background: rgba(255,255,255,0.05); 
+            backdrop-filter: blur(10px); 
+        }
+        .metro-gradient {
+            background: linear-gradient(135deg, #0055A4, #0066CC);
+        }
+        .metro-border {
+            border-color: #0055A4;
+        }
         .emotion-btn { min-width: 80px; }
         
         /* Waveform animation */
         .waveform { display: flex; align-items: center; justify-content: center; gap: 2px; height: 32px; }
         .waveform span {
             width: 3px;
-            background: linear-gradient(to top, #3b82f6, #8b5cf6);
+            background: linear-gradient(to top, #0055A4, #4DA6FF);
             border-radius: 2px;
             animation: wave 1s ease-in-out infinite;
         }
@@ -31,11 +48,6 @@
             50% { height: 28px; }
         }
         
-        .waveform.paused span {
-            animation: none;
-            height: 12px;
-        }
-        
         /* Progress bar */
         .progress-bar {
             background: rgba(255,255,255,0.1);
@@ -46,25 +58,45 @@
         }
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            background: linear-gradient(90deg, #0055A4, #4DA6FF);
             border-radius: 4px;
             transition: width 0.1s linear;
         }
         
         /* Player card */
         .player-card {
-            background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(139,92,246,0.1));
-            border: 1px solid rgba(139,92,246,0.3);
+            background: linear-gradient(135deg, rgba(0,85,164,0.1), rgba(0,102,204,0.1));
+            border: 1px solid rgba(0,85,164,0.3);
         }
         .player-card.playing {
-            border-color: rgba(139,92,246,0.6);
-            box-shadow: 0 0 30px rgba(139,92,246,0.2);
+            border-color: rgba(0,85,164,0.6);
+            box-shadow: 0 0 30px rgba(0,85,164,0.3);
         }
         
         /* Scroll styling */
         .history-scroll::-webkit-scrollbar { width: 4px; }
         .history-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 2px; }
-        .history-scroll::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.5); border-radius: 2px; }
+        .history-scroll::-webkit-scrollbar-thumb { background: rgba(0,85,164,0.5); border-radius: 2px; }
+        
+        /* Login screen */
+        .login-container {
+            background: linear-gradient(135deg, rgba(0,85,164,0.2), rgba(0,102,204,0.1));
+            border: 1px solid rgba(0,85,164,0.4);
+        }
+        
+        /* Metro logo */
+        .metro-logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #0055A4, #4DA6FF);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin: 0 auto 20px;
+            box-shadow: 0 0 40px rgba(0,85,164,0.4);
+        }
     </style>
 </head>
 <body class="min-h-screen text-white p-4 md:p-8">
@@ -72,15 +104,17 @@
 
     <script>
     const API_URL = window.location.origin;
+    const APP_PASSWORD = 'dragonsvitex2026';
+    const SESSION_KEY = 'metro_tts_session';
 
     const voices = [
-        { id: 'dmitry', name: 'Дмитрий', description: 'Профессиональный мужской', gender: 'male' },
+        { id: 'dmitry', name: 'Дмитрий', description: 'Информационный', gender: 'male' },
         { id: 'dmitry_advanced', name: 'Дмитрий Pro', description: 'С эмоциями', gender: 'male' },
-        { id: 'oleg', name: 'Олег', description: 'С характером', gender: 'male' },
-        { id: 'filipp', name: 'Филипп', description: 'Мужской голос', gender: 'male' },
-        { id: 'svetlana', name: 'Светлана', description: 'Профессиональный женский', gender: 'female' },
+        { id: 'oleg', name: 'Олег', description: 'Официальный', gender: 'male' },
+        { id: 'filipp', name: 'Филипп', description: 'Дикторский', gender: 'male' },
+        { id: 'svetlana', name: 'Светлана', description: 'Информационный', gender: 'female' },
         { id: 'svetlana_advanced', name: 'Светлана Pro', description: 'С эмоциями', gender: 'female' },
-        { id: 'alena', name: 'Алёна', description: 'Мягкий женский', gender: 'female' },
+        { id: 'alena', name: 'Алёна', description: 'Спокойный', gender: 'female' },
     ];
 
     const emotions = [
@@ -96,6 +130,8 @@
     ];
 
     let state = {
+        isAuthenticated: false,
+        loginError: '',
         selectedVoice: 'dmitry_advanced',
         selectedEmotion: 'neutral',
         text: '',
@@ -106,10 +142,40 @@
         isPlaying: false,
         playingId: null,
         progress: 0,
-        genderFilter: 'all'
+        genderFilter: 'all',
+        stats: { totalChars: 0, totalGenerations: 0 }
     };
 
     let progressInterval = null;
+
+    // Check session on load
+    function checkSession() {
+        const session = sessionStorage.getItem(SESSION_KEY);
+        if (session === 'authenticated') {
+            state.isAuthenticated = true;
+        }
+    }
+
+    function handleLogin() {
+        const passwordInput = document.getElementById('passwordInput');
+        const password = passwordInput?.value || '';
+        
+        if (password === APP_PASSWORD) {
+            state.isAuthenticated = true;
+            state.loginError = '';
+            sessionStorage.setItem(SESSION_KEY, 'authenticated');
+            render();
+        } else {
+            state.loginError = 'Неверный пароль';
+            render();
+        }
+    }
+
+    function handleLogout() {
+        state.isAuthenticated = false;
+        sessionStorage.removeItem(SESSION_KEY);
+        render();
+    }
 
     async function generateTTS() {
         const text = state.text.trim();
@@ -119,6 +185,8 @@
         }
 
         state.isGenerating = true;
+        state.stats.totalChars += text.length;
+        state.stats.totalGenerations++;
         render();
 
         try {
@@ -246,7 +314,7 @@
     function downloadAudio(item) {
         const link = document.createElement('a');
         link.href = `${API_URL}${item.audio_url}`;
-        link.download = `tts_${item.id}.mp3`;
+        link.download = `metro_tts_${item.id}.mp3`;
         link.click();
     }
 
@@ -261,39 +329,106 @@
         return formatTime(seconds);
     }
 
-    function render() {
+    function renderLoginScreen() {
+        return `
+        <div class="min-h-screen flex items-center justify-center">
+            <div class="login-container rounded-2xl p-8 w-full max-w-md">
+                <!-- Metro Logo -->
+                <div class="metro-logo">
+                    🚇
+                </div>
+                
+                <!-- Title -->
+                <h1 class="text-2xl font-bold text-center mb-2 text-[#4DA6FF]">
+                    СПС Голосовая Студия
+                </h1>
+                <p class="text-center text-gray-400 mb-6 text-sm">
+                    Служба пассажирских сервисов<br>
+                    ГУП «Петербургский метрополитен»
+                </p>
+                
+                <!-- Login Form -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Пароль</label>
+                        <input type="password" id="passwordInput"
+                            class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-[#0055A4] focus:outline-none"
+                            placeholder="Введите пароль"
+                            onkeypress="if(event.key==='Enter')handleLogin()">
+                    </div>
+                    
+                    ${state.loginError ? `
+                    <p class="text-red-400 text-sm text-center">${state.loginError}</p>
+                    ` : ''}
+                    
+                    <button onclick="handleLogin()"
+                        class="w-full py-3 rounded-xl metro-gradient hover:opacity-90 font-semibold transition-all">
+                        Войти
+                    </button>
+                </div>
+                
+                <!-- Footer -->
+                <p class="text-center text-gray-500 text-xs mt-6">
+                    Объединяем город, сближаем людей
+                </p>
+            </div>
+        </div>
+        `;
+    }
+
+    function renderMainApp() {
         const filteredVoices = voices.filter(v =>
             state.genderFilter === 'all' || v.gender === state.genderFilter
         );
 
-        const app = document.getElementById('app');
-        app.innerHTML = `
+        return `
         <div class="max-w-7xl mx-auto">
+            <!-- Header -->
             <header class="text-center mb-8">
-                <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-                    Dragonsvitex TTS Studio
-                </h1>
-                <p class="text-gray-400">Профессиональная студия синтеза русской речи</p>
+                <div class="flex items-center justify-center gap-4 mb-4">
+                    <div class="w-12 h-12 rounded-full metro-gradient flex items-center justify-center text-2xl shadow-lg">
+                        🚇
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-[#4DA6FF]">
+                            СПС Голосовая Студия
+                        </h1>
+                        <p class="text-gray-400 text-sm">Петербургский метрополитен • Стандарт АИ-22</p>
+                    </div>
+                </div>
+                
+                <!-- Stats Bar -->
+                <div class="flex justify-center gap-6 text-sm">
+                    <span class="text-gray-500">
+                        📊 Символов: <span class="text-[#4DA6FF]">${state.stats.totalChars}</span>
+                    </span>
+                    <span class="text-gray-500">
+                        🎵 Генераций: <span class="text-[#4DA6FF]">${state.stats.totalGenerations}</span>
+                    </span>
+                    <button onclick="handleLogout()" class="text-gray-500 hover:text-red-400 transition-colors">
+                        🚪 Выйти
+                    </button>
+                </div>
             </header>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Левая колонка: Голоса и Эмоции -->
+                <!-- Left Column -->
                 <div class="lg:col-span-2 space-y-6">
-                    <!-- Выбор голоса -->
-                    <div class="glass rounded-xl p-6 border border-white/10">
+                    <!-- Voice Selection -->
+                    <div class="glass rounded-xl p-6 border border-[#0055A4]/30">
                         <div class="flex items-center justify-between mb-4">
                             <h2 class="text-xl font-semibold">Выбор голоса</h2>
                             <div class="flex gap-2">
                                 <button onclick="state.genderFilter='all';render()"
-                                    class="px-3 py-1 rounded-lg text-sm ${state.genderFilter === 'all' ? 'bg-blue-500' : 'bg-white/10 hover:bg-white/20'}">
+                                    class="px-3 py-1 rounded-lg text-sm ${state.genderFilter === 'all' ? 'metro-gradient' : 'bg-white/10 hover:bg-white/20'}">
                                     Все
                                 </button>
                                 <button onclick="state.genderFilter='male';render()"
-                                    class="px-3 py-1 rounded-lg text-sm ${state.genderFilter === 'male' ? 'bg-blue-500' : 'bg-white/10 hover:bg-white/20'}">
+                                    class="px-3 py-1 rounded-lg text-sm ${state.genderFilter === 'male' ? 'metro-gradient' : 'bg-white/10 hover:bg-white/20'}">
                                     👨 Мужские
                                 </button>
                                 <button onclick="state.genderFilter='female';render()"
-                                    class="px-3 py-1 rounded-lg text-sm ${state.genderFilter === 'female' ? 'bg-pink-500' : 'bg-white/10 hover:bg-white/20'}">
+                                    class="px-3 py-1 rounded-lg text-sm ${state.genderFilter === 'female' ? 'metro-gradient' : 'bg-white/10 hover:bg-white/20'}">
                                     👩 Женские
                                 </button>
                             </div>
@@ -301,9 +436,9 @@
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                             ${filteredVoices.map(v => `
                             <div onclick="state.selectedVoice='${v.id}';render()"
-                                class="p-3 rounded-xl cursor-pointer transition-all ${state.selectedVoice === v.id ? 'bg-blue-500/20 border-2 border-blue-500' : 'bg-white/5 border border-white/10 hover:border-blue-400/50'}">
+                                class="p-3 rounded-xl cursor-pointer transition-all ${state.selectedVoice === v.id ? 'bg-[#0055A4]/20 border-2 border-[#0055A4]' : 'bg-white/5 border border-white/10 hover:border-[#0055A4]/50'}">
                                 <div class="flex items-center gap-2">
-                                    <div class="w-8 h-8 rounded-full ${v.gender === 'male' ? 'bg-gradient-to-br from-blue-500 to-purple-600' : 'bg-gradient-to-br from-pink-500 to-rose-600'} flex items-center justify-center text-sm">
+                                    <div class="w-8 h-8 rounded-full ${v.gender === 'male' ? 'bg-gradient-to-br from-[#0055A4] to-[#4DA6FF]' : 'bg-gradient-to-br from-pink-500 to-rose-600'} flex items-center justify-center text-sm">
                                         🎤
                                     </div>
                                     <div>
@@ -316,13 +451,13 @@
                         </div>
                     </div>
 
-                    <!-- Выбор эмоции -->
-                    <div class="glass rounded-xl p-6 border border-white/10">
-                        <h2 class="text-xl font-semibold mb-4">Выбор эмоции</h2>
+                    <!-- Emotion Selection -->
+                    <div class="glass rounded-xl p-6 border border-[#0055A4]/30">
+                        <h2 class="text-xl font-semibold mb-4">Выбор интонации</h2>
                         <div class="grid grid-cols-5 md:grid-cols-9 gap-2">
                             ${emotions.map(e => `
                             <button onclick="state.selectedEmotion='${e.id}';render()"
-                                class="emotion-btn p-2 rounded-xl transition-all flex flex-col items-center ${state.selectedEmotion === e.id ? 'bg-purple-500/30 border-2 border-purple-400' : 'bg-white/5 border border-white/10 hover:border-purple-400/50'}">
+                                class="emotion-btn p-2 rounded-xl transition-all flex flex-col items-center ${state.selectedEmotion === e.id ? 'bg-[#0055A4]/30 border-2 border-[#0055A4]' : 'bg-white/5 border border-white/10 hover:border-[#0055A4]/50'}">
                                 <span class="text-2xl mb-1">${e.emoji}</span>
                                 <span class="text-xs text-center leading-tight">${e.name}</span>
                             </button>
@@ -330,31 +465,31 @@
                         </div>
                     </div>
 
-                    <!-- Текст и генерация -->
-                    <div class="glass rounded-xl p-6 border border-white/10">
-                        <h2 class="text-xl font-semibold mb-4">Текст для озвучки</h2>
+                    <!-- Text Input -->
+                    <div class="glass rounded-xl p-6 border border-[#0055A4]/30">
+                        <h2 class="text-xl font-semibold mb-4">Текст объявления</h2>
                         <textarea id="textInput"
-                            class="w-full h-40 bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder-gray-500 resize-none focus:border-blue-400 focus:outline-none"
+                            class="w-full h-40 bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder-gray-500 resize-none focus:border-[#0055A4] focus:outline-none"
                             placeholder="Введите текст для озвучивания...">${state.text}</textarea>
 
                         <div class="mt-4">
                             <label class="text-sm text-gray-400">Скорость речи: ${state.speed > 0 ? '+' : ''}${state.speed}%</label>
                             <input type="range" min="-50" max="50" step="10" value="${state.speed}"
-                                class="w-full mt-2 accent-blue-500"
+                                class="w-full mt-2 accent-[#0055A4]"
                                 onchange="state.speed=parseInt(this.value);render()">
                         </div>
 
                         <button onclick="generateTTS()"
                             ${state.isGenerating ? 'disabled' : ''}
-                            class="w-full mt-4 py-4 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg transition-all">
-                            ${state.isGenerating ? '⏳ Генерация...' : '✨ Сгенерировать MP3'}
+                            class="w-full mt-4 py-4 rounded-xl metro-gradient hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg transition-all">
+                            ${state.isGenerating ? '⏳ Генерация...' : '✨ Сгенерировать объявление'}
                         </button>
                     </div>
                 </div>
 
-                <!-- Правая колонка: История -->
+                <!-- Right Column: History -->
                 <div class="lg:col-span-1">
-                    <div class="glass rounded-xl p-6 border border-white/10 sticky top-4">
+                    <div class="glass rounded-xl p-6 border border-[#0055A4]/30 sticky top-4">
                         <h2 class="text-xl font-semibold mb-4">История (${state.history.length})</h2>
                         <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-2 history-scroll">
                             ${state.history.length === 0 ? `
@@ -364,7 +499,6 @@
                             </div>
                             ` : state.history.map(item => `
                             <div class="player-card rounded-xl p-4 ${state.playingId === item.id && state.isPlaying ? 'playing' : ''}">
-                                <!-- Header -->
                                 <div class="flex items-center justify-between mb-3">
                                     <div class="flex items-center gap-2">
                                         <span class="text-sm font-medium text-gray-300">${item.voice}</span>
@@ -372,18 +506,16 @@
                                         <span class="text-xs text-gray-400">${item.emotion}</span>
                                     </div>
                                     <button onclick='downloadAudio(${JSON.stringify(item)})' 
-                                        class="text-gray-400 hover:text-green-400 transition-colors" title="Скачать">
+                                        class="text-gray-400 hover:text-[#4DA6FF] transition-colors" title="Скачать">
                                         ⬇
                                     </button>
                                 </div>
                                 
-                                <!-- Text preview -->
                                 <p class="text-sm text-gray-300 mb-3 line-clamp-2">${item.text || 'Без названия'}</p>
                                 
-                                <!-- Waveform / Play button -->
                                 <div class="flex items-center gap-3">
                                     <button onclick='playAudio(${JSON.stringify(item)})'
-                                        class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 flex items-center justify-center transition-all shadow-lg hover:shadow-purple-500/25">
+                                        class="w-12 h-12 rounded-full metro-gradient hover:opacity-90 flex items-center justify-center transition-all shadow-lg">
                                         ${state.playingId === item.id && state.isPlaying ? 
                                             '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>' : 
                                             '<svg class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'
@@ -391,18 +523,15 @@
                                     </button>
                                     
                                     <div class="flex-1">
-                                        <!-- Progress bar -->
                                         <div class="progress-bar mb-1" onclick='seekAudio(${JSON.stringify(item)}, event)'>
                                             <div id="progress-fill-${item.id}" class="progress-fill" style="width: ${state.playingId === item.id ? state.progress : 0}%"></div>
                                         </div>
-                                        <!-- Time -->
                                         <div class="flex justify-between text-xs text-gray-400">
                                             <span id="time-${item.id}">${state.playingId === item.id ? formatTime(state.currentAudio?.currentTime || 0) : '0:00'} / ${formatDuration(item.duration)}</span>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                <!-- Animated waveform indicator -->
                                 ${state.playingId === item.id && state.isPlaying ? `
                                 <div class="flex justify-center mt-3">
                                     <div class="waveform">
@@ -417,21 +546,35 @@
                 </div>
             </div>
 
+            <!-- Footer -->
             <footer class="text-center mt-8 text-gray-500 text-sm">
-                <p>Создано с ❤️ • Edge TTS • Стандарт АИ-22</p>
+                <p>ГУП «Петербургский метрополитен» • Служба пассажирских сервисов</p>
+                <p class="text-xs mt-1">Объединяем город, сближаем людей</p>
             </footer>
         </div>
         `;
+    }
 
-        const textInput = document.getElementById('textInput');
-        if (textInput) {
-            textInput.value = state.text;
-            textInput.addEventListener('input', (e) => {
-                state.text = e.target.value;
-            });
+    function render() {
+        const app = document.getElementById('app');
+        
+        if (!state.isAuthenticated) {
+            app.innerHTML = renderLoginScreen();
+        } else {
+            app.innerHTML = renderMainApp();
+            
+            const textInput = document.getElementById('textInput');
+            if (textInput) {
+                textInput.value = state.text;
+                textInput.addEventListener('input', (e) => {
+                    state.text = e.target.value;
+                });
+            }
         }
     }
 
+    // Initialize
+    checkSession();
     render();
     </script>
 </body>
