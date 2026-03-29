@@ -392,8 +392,11 @@
   }
 
 function addToHistoryDOM(item) {
-  const container = document.querySelector('.history-scroll .space-y-4');
-  if (!container) return;
+  const container = document.getElementById('historyList');
+  if (!container) {
+    console.error('History container not found');
+    return;
+  }
 
   const emptyMsg = container.querySelector('.text-center');
   if (emptyMsg) emptyMsg.remove();
@@ -421,10 +424,9 @@ function addToHistoryDOM(item) {
 </div>`;
   container.insertBefore(card, container.firstChild);
 
-  const historyHeader = document.querySelector('.glass h2');
-  if (historyHeader && historyHeader.textContent.includes('История')) {
-    const match = historyHeader.textContent.match(/\((\d+)\)/);
-    if (match) historyHeader.textContent = `📻 История (${parseInt(match[1]) + 1})`;
+  const countEl = document.getElementById('historyCount');
+  if (countEl) {
+    countEl.textContent = parseInt(countEl.textContent || '0') + 1;
   }
 }
 
@@ -690,12 +692,13 @@ function addToHistoryDOM(item) {
                     </div>
                 </div>
 
-                <!-- History -->
-                <div class="lg:col-span-1">
-                    <div class="glass rounded-xl p-6 border border-white/10 sticky top-4">
-                        <h2 class="text-xl font-semibold mb-4">📻 История (${state.history.length})</h2>
-                        <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-2 history-scroll">
-                            ${state.history.length === 0 ? `<div class="text-center py-12 text-gray-500"><p class="text-4xl mb-3">📜</p><p>История пуста</p></div>` :
+<!-- History -->
+<div class="lg:col-span-1">
+<div class="glass rounded-xl p-6 border border-white/10 sticky top-4">
+<h2 class="text-xl font-semibold mb-4">📻 История (<span id="historyCount">${state.history.length}</span>)</h2>
+<div class="max-h-[70vh] overflow-y-auto pr-2 history-scroll">
+<div class="space-y-4" id="historyList">
+${state.history.length === 0 ? `<div class="text-center py-12 text-gray-500"><p class="text-4xl mb-3">📜</p><p>История пуста</p></div>` :
                             state.history.map(item => `
                             <div class="player-card rounded-xl p-4 ${state.playingId === item.id && state.isPlaying ? 'playing' : ''}">
                                 <div class="flex items-center justify-between mb-2">
