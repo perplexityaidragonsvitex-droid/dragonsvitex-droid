@@ -343,9 +343,10 @@
         render();
     }
 
-    async function generateTTS() {
-        const text = state.text.trim();
-        if (!text) { alert('Введите текст'); return; }
+  async function generateTTS() {
+    const textEl = document.getElementById('textInput');
+    const text = textEl ? textEl.value.trim() : state.text.trim();
+    if (!text) { alert('Введите текст'); return; }
 
         state.isGenerating = true;
     state.stats.totalChars += text.length;
