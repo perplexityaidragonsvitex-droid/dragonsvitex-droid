@@ -10,7 +10,15 @@
     <title>СПС Голосовая Студия • Петербургский метрополитен</title>
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
-    <link rel="apple-touch-icon" href="/static/logo.svg">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/static/icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="96x96" href="/static/icons/icon-96x96.png">
+    <link rel="apple-touch-icon" sizes="128x128" href="/static/icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/static/icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/static/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="384x384" href="/static/icons/icon-384x384.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/static/icons/icon-512x512.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -424,10 +432,7 @@
         <div class="min-h-screen flex items-center justify-center fade-in">
             <div class="login-container rounded-2xl p-8 w-full max-w-md">
                 <div class="metro-logo">
-                    <svg viewBox="0 0 100 100">
-                        <circle cx="50" cy="50" r="48" fill="#0055A4"/>
-                        <path d="M25 75 L25 35 C25 28 32 22 40 22 L60 22 C68 22 75 28 75 35 L75 75 L62 75 L62 42 L55 60 L45 60 L38 42 L38 75 Z" fill="white"/>
-                    </svg>
+                    <img src="/static/metro-logo.png" alt="М" style="width:60px;height:60px;object-fit:contain;">
                 </div>
                 <h1 class="text-2xl font-bold text-center mb-2 gradient-text">СПС Голосовая Студия</h1>
                 <p class="text-center text-gray-400 mb-6 text-sm">Служба пассажирских сервисов<br>ГУП «Петербургский метрополитен»</p>
@@ -452,12 +457,9 @@
         <!-- Install Banner -->
         <div id="installBanner" class="install-banner hidden fixed top-0 left-0 right-0 z-50 p-4 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-                <div class="metro-logo-small" style="width:40px;height:40px;min-width:40px;">
-                    <svg viewBox="0 0 100 100" style="width:28px;height:28px;">
-                        <circle cx="50" cy="50" r="48" fill="#0055A4"/>
-                        <path d="M25 75 L25 35 C25 28 32 22 40 22 L60 22 C68 22 75 28 75 35 L75 75 L62 75 L62 42 L55 60 L45 60 L38 42 L38 75 Z" fill="white"/>
-                    </svg>
-                </div>
+<div class="metro-logo-small" style="width:40px;height:40px;min-width:40px;">
+                        <img src="/static/metro-logo.png" alt="М" style="width:28px;height:28px;object-fit:contain;">
+                    </div>
                 <div>
                     <p class="font-semibold text-sm">Установить приложение</p>
                     <p class="text-xs text-white/70">Добавьте СПС TTS на главный экран для быстрого доступа</p>
@@ -475,7 +477,7 @@
                 <div class="flex items-center justify-between mb-6">
                     <div class="flex items-center gap-4">
                         <div class="metro-logo-small pulse-glow">
-                            <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#0055A4"/><path d="M25 75 L25 35 C25 28 32 22 40 22 L60 22 C68 22 75 28 75 35 L75 75 L62 75 L62 42 L55 60 L45 60 L38 42 L38 75 Z" fill="white"/></svg>
+                            <img src="/static/metro-logo.png" alt="М" style="width:32px;height:32px;object-fit:contain;">
                         </div>
                         <div>
                             <h1 class="text-2xl font-bold gradient-text">СПС Голосовая Студия</h1>
