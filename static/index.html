@@ -348,9 +348,10 @@
         if (!text) { alert('Введите текст'); return; }
 
         state.isGenerating = true;
-        state.stats.totalChars += text.length;
-        state.stats.totalGenerations++;
-        render();
+    state.stats.totalChars += text.length;
+    state.stats.totalGenerations++;
+    updateStatsDisplay();
+        updateGeneratingState();
 
         try {
             const res = await fetch(`${API_URL}/generate`, {
@@ -361,20 +362,81 @@
 
             if (!res.ok) throw new Error((await res.json()).detail || 'Ошибка');
 
-            state.history.unshift(await res.json());
-            render();
+    const newItem = await res.json();
+    state.history.unshift(newItem);
+    addToHistoryDOM(newItem);
         } catch (e) {
             alert('Ошибка: ' + e.message);
         } finally {
             state.isGenerating = false;
-            render();
+            updateGeneratingState();
         }
     }
 
+  function updateGeneratingState() {
+    const waveformBars = document.querySelectorAll('.waveform-bar');
+    waveformBars.forEach(bar => {
+      if (state.isPlaying || state.isGenerating) {
+        bar.classList.remove('idle');
+      } else {
+        bar.classList.add('idle');
+      }
+    });
+
+    const btn = document.querySelector('.generate-btn');
+    if (btn) {
+      btn.textContent = state.isGenerating ? '⏳ Генерация...' : '✨ Сгенерировать объявление';
+      btn.disabled = state.isGenerating;
+    }
+  }
+
+  function addToHistoryDOM(item) {
+    const container = document.querySelector('.history-scroll .space-y-4');
+    if (!container) return;
+    
+    const emptyMsg = container.querySelector('.text-center');
+    if (emptyMsg) emptyMsg.remove();
+    
+    const card = document.createElement('div');
+    card.className = 'player-card rounded-xl p-4';
+    card.innerHTML = `
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-medium text-gray-300">${item.voice}</span>
+        <button onclick='downloadAudio(${JSON.stringify(item)})' class="text-gray-400 hover:text-[#4DA6FF] transition-colors">⬇</button>
+      </div>
+      <p class="text-sm text-gray-300 mb-3 line-clamp-2">${item.text || 'Без названия'}</p>
+      <div class="flex items-center gap-3">
+        <button onclick='playAudio(${JSON.stringify(item)})' class="w-12 h-12 rounded-full metro-gradient hover:opacity-90 flex items-center justify-center transition-all shadow-lg">
+          <svg class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div class="flex-1">
+          <div class="progress-bar mb-1" onclick='seekAudio(${JSON.stringify(item)},event)'>
+            <div id="progress-fill-${item.id}" class="progress-fill" style="width:0%"></div>
+          </div>
+          <div class="text-xs text-gray-400"><span id="time-${item.id}">0:00 / ${formatTime(item.duration)}</span></div>
+        </div>
+      </div>`;
+    container.insertBefore(card, container.firstChild);
+    
+    const countEl = document.querySelector('h2:contains("История")');
+    if (countEl) {
+      const match = countEl.textContent.match(/\((\d+)\)/);
+      if (match) countEl.textContent = `📻 История (${parseInt(match[1]) + 1})`;
+    }
+  }
+
     function playAudio(item) {
         if (state.currentAudio && state.playingId === item.id) {
-            state.isPlaying ? (state.currentAudio.pause(), state.isPlaying = false) : (state.currentAudio.play(), state.isPlaying = true, startProgressTracking());
-            render();
+            if (state.isPlaying) {
+                state.currentAudio.pause();
+                state.isPlaying = false;
+                clearInterval(progressInterval);
+            } else {
+                state.currentAudio.play();
+                state.isPlaying = true;
+                startProgressTracking();
+            }
+            updatePlayingState();
             return;
         }
 
@@ -386,12 +448,45 @@
             state.isPlaying = true;
             state.playingId = item.id;
             state.progress = 0;
-            render();
+            updatePlayingState();
             startProgressTracking();
         };
-        audio.onended = () => { state.isPlaying = false; state.playingId = null; state.progress = 0; clearInterval(progressInterval); render(); };
-        audio.onerror = () => { alert('Ошибка воспроизведения'); state.isPlaying = false; state.playingId = null; render(); };
+        audio.onended = () => { 
+            state.isPlaying = false; 
+            state.playingId = null; 
+            state.progress = 0; 
+            clearInterval(progressInterval); 
+            updatePlayingState();
+        };
+        audio.onerror = () => { 
+            alert('Ошибка воспроизведения'); 
+            state.isPlaying = false; 
+            state.playingId = null; 
+            updatePlayingState();
+        };
         audio.play();
+    }
+
+    function updatePlayingState() {
+        // Обновляем только waveform без перерисовки всего UI
+        const waveformBars = document.querySelectorAll('.waveform-bar');
+        waveformBars.forEach(bar => {
+            if (state.isPlaying || state.isGenerating) {
+                bar.classList.remove('idle');
+            } else {
+                bar.classList.add('idle');
+            }
+        });
+        
+        // Обновляем кнопки play/pause в истории
+        const historyItems = document.querySelectorAll('.player-card');
+        historyItems.forEach(card => {
+            if (card.dataset.id === state.playingId && state.isPlaying) {
+                card.classList.add('playing');
+            } else {
+                card.classList.remove('playing');
+            }
+        });
     }
 
     function startProgressTracking() {
@@ -414,7 +509,8 @@
         const percent = (e.clientX - rect.left) / rect.width;
         state.currentAudio.currentTime = percent * state.currentAudio.duration;
         state.progress = percent * 100;
-        render();
+        const el = document.getElementById('progress-fill-' + state.playingId);
+        if (el) el.style.width = (percent * 100) + '%';
     }
 
     function downloadAudio(item) {
@@ -426,6 +522,13 @@
     }
 
     function formatTime(s) { if (!s || isNaN(s)) return '0:00'; return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`; }
+
+  function updateStatsDisplay() {
+    const charsEl = document.querySelector('.text-right .text-gray-400:first-child');
+    const gensEl = document.querySelector('.text-right .text-gray-400:last-child');
+    if (charsEl) charsEl.textContent = `📊 ${state.stats.totalChars} символов`;
+    if (gensEl) gensEl.textContent = `🎵 ${state.stats.totalGenerations} генераций`;
+  }
 
     function renderLogin() {
         return `
