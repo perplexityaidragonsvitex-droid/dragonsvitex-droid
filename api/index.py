@@ -141,11 +141,7 @@ async def generate_tts(request: TTSRequest):
             "emotion": request.emotion,
             "text": request.text[:100] + ("..." if len(request.text) > 100 else "")
         }
-        
-        GENERATION_HISTORY.insert(0, result)
-        if len(GENERATION_HISTORY) > 50:
-            GENERATION_HISTORY.pop()
-        
+
         return result
         
     except Exception as e:
