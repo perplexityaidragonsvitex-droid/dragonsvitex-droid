@@ -794,7 +794,7 @@ ${item.voice}
                                     </div>
                                 </div>
                                 ${state.selectedVoice === v.id ? '<div class="absolute top-3 right-3">✨</div>' : ''}
-                            </div>`).join('')}
+                            </div>`).join(''')}
                         </div>
                     </div>
 
@@ -829,7 +829,7 @@ ${item.voice}
                     <div class="fade-in fade-in-delay-4">
                         <div class="card-gradient rounded-xl border border-white/10 overflow-hidden">
                             <div class="waveform-container">
-                                ${Array(10).fill(0).map((_, i) => `<div class="waveform-bar ${isWaveformActive ? '' : 'idle'}"></div>`).join('')}
+                                ${Array(10).fill(0).map((_, i) => `<div class="waveform-bar ${isWaveformActive ? '' : 'idle'}"></div>`).join(''')}
                             </div>
                         </div>
                     </div>
@@ -872,7 +872,7 @@ ${state.playingId === item.id && state.isPlaying ?
 </div>
 </div>
 </div>
-</div>\`).join('')}
+</div>`).join('')}
 </div>
 </div>
 </div>
