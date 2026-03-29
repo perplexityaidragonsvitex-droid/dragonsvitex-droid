@@ -391,40 +391,42 @@
     }
   }
 
-  function addToHistoryDOM(item) {
-    const container = document.querySelector('.history-scroll .space-y-4');
-    if (!container) return;
-    
-    const emptyMsg = container.querySelector('.text-center');
-    if (emptyMsg) emptyMsg.remove();
-    
-    const card = document.createElement('div');
-    card.className = 'player-card rounded-xl p-4';
-    card.innerHTML = `
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-sm font-medium text-gray-300">${item.voice}</span>
-        <button onclick='downloadAudio(${JSON.stringify(item)})' class="text-gray-400 hover:text-[#4DA6FF] transition-colors">⬇</button>
-      </div>
-      <p class="text-sm text-gray-300 mb-3 line-clamp-2">${item.text || 'Без названия'}</p>
-      <div class="flex items-center gap-3">
-        <button onclick='playAudio(${JSON.stringify(item)})' class="w-12 h-12 rounded-full metro-gradient hover:opacity-90 flex items-center justify-center transition-all shadow-lg">
-          <svg class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-        </button>
-        <div class="flex-1">
-          <div class="progress-bar mb-1" onclick='seekAudio(${JSON.stringify(item)},event)'>
-            <div id="progress-fill-${item.id}" class="progress-fill" style="width:0%"></div>
-          </div>
-          <div class="text-xs text-gray-400"><span id="time-${item.id}">0:00 / ${formatTime(item.duration)}</span></div>
-        </div>
-      </div>`;
-    container.insertBefore(card, container.firstChild);
-    
-    const countEl = document.querySelector('h2:contains("История")');
-    if (countEl) {
-      const match = countEl.textContent.match(/\((\d+)\)/);
-      if (match) countEl.textContent = `📻 История (${parseInt(match[1]) + 1})`;
-    }
+function addToHistoryDOM(item) {
+  const container = document.querySelector('.history-scroll .space-y-4');
+  if (!container) return;
+
+  const emptyMsg = container.querySelector('.text-center');
+  if (emptyMsg) emptyMsg.remove();
+
+  const card = document.createElement('div');
+  card.className = 'player-card rounded-xl p-4';
+  card.dataset.id = item.id;
+  const itemJson = JSON.stringify(item).replace(/'/g, "\\'");
+  card.innerHTML = `
+<div class="flex items-center justify-between mb-2">
+<span class="text-sm font-medium text-gray-300">${item.voice}</span>
+<button onclick='downloadAudio(${itemJson})' class="text-gray-400 hover:text-[#4DA6FF] transition-colors">⬇</button>
+</div>
+<p class="text-sm text-gray-300 mb-3 line-clamp-2">${item.text || 'Без названия'}</p>
+<div class="flex items-center gap-3">
+<button onclick='playAudio(${itemJson})' class="w-12 h-12 rounded-full metro-gradient hover:opacity-90 flex items-center justify-center transition-all shadow-lg">
+<svg class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+</button>
+<div class="flex-1">
+<div class="progress-bar mb-1" onclick='seekAudio(${itemJson},event)'>
+<div id="progress-fill-${item.id}" class="progress-fill" style="width:0%"></div>
+</div>
+<div class="text-xs text-gray-400"><span id="time-${item.id}">0:00 / ${formatTime(item.duration)}</span></div>
+</div>
+</div>`;
+  container.insertBefore(card, container.firstChild);
+
+  const historyHeader = document.querySelector('.glass h2');
+  if (historyHeader && historyHeader.textContent.includes('История')) {
+    const match = historyHeader.textContent.match(/\((\d+)\)/);
+    if (match) historyHeader.textContent = `📻 История (${parseInt(match[1]) + 1})`;
   }
+}
 
     function playAudio(item) {
         if (state.currentAudio && state.playingId === item.id) {
@@ -443,7 +445,7 @@
 
         if (state.currentAudio) { state.currentAudio.pause(); clearInterval(progressInterval); }
 
-        const audio = new Audio(`${API_URL}${item.audio_url}`);
+        const audio = new Audio(`${API_URL}${encodeURI(item.audio_url)}`);
         audio.onloadedmetadata = () => {
             state.currentAudio = audio;
             state.isPlaying = true;
@@ -516,7 +518,7 @@
 
     function downloadAudio(item) {
         const link = document.createElement('a');
-        link.href = `${API_URL}${item.audio_url}`;
+        link.href = `${API_URL}${encodeURI(item.audio_url)}`;
         const d = new Date();
         link.download = `${item.voice.replace(/ /g,'_')}_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}.mp3`;
         link.click();
